@@ -12,6 +12,7 @@ import "./menu";
 import icon from "./assets/icon.png";
 import { getMalformedUserAgent, getUserAgent } from "./main/userAgent";
 import { SessionManager } from "./main/managers/SessionManager";
+import { enableAdBlocker } from "./main/adBlocker";
 import { runAutoUpdate } from "./autoUpdate";
 import { getSavedBounds, saveWindowBounds } from "./bounds";
 
@@ -120,6 +121,10 @@ if (!hasSingleInstanceLock) {
       hasWidevineError = true;
       console.error("components failed to load:", JSON.stringify(e, null, 2));
     }
+
+    // Enable ad/tracker blocking on the default session before any browser
+    // tabs are created so it applies to all of them (e.g. YouTube playback).
+    await enableAdBlocker(session.defaultSession);
 
     window = createWindow();
 
