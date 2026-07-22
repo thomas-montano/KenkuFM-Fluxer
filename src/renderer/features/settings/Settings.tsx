@@ -25,7 +25,8 @@ import { RootState } from "../../app/store";
 import { useSelector, useDispatch } from "react-redux";
 import { setStatus } from "../connection/connectionSlice";
 import {
-  setDiscordToken,
+  setFluxerUrl,
+  setFluxerToken,
   setExternalInputsEnabled,
   setMultipleInputsEnabled,
   setMultipleOutputsEnabled,
@@ -48,23 +49,27 @@ export function Settings({ open, onClose }: SettingsProps) {
   const settings = useSelector((state: RootState) => state.settings);
   const dispatch = useDispatch();
 
-  function handleDiscordTokenChange(e: React.ChangeEvent<HTMLInputElement>) {
-    dispatch(setDiscordToken(e.target.value));
+  function handleFluxerUrlChange(e: React.ChangeEvent<HTMLInputElement>) {
+    dispatch(setFluxerUrl(e.target.value));
   }
 
-  function handleDiscordConnect() {
+  function handleFluxerTokenChange(e: React.ChangeEvent<HTMLInputElement>) {
+    dispatch(setFluxerToken(e.target.value));
+  }
+
+  function handleFluxerConnect() {
     if (connection.status === "disconnected") {
       dispatch(setStatus("connecting"));
-      window.kenku.connect(settings.discordToken);
+      window.kenku.connect(settings.fluxerUrl, settings.fluxerToken);
     } else {
       window.kenku.disconnect();
     }
   }
 
   useEffect(() => {
-    if (settings.discordToken) {
+    if (settings.fluxerUrl && settings.fluxerToken) {
       dispatch(setStatus("connecting"));
-      window.kenku.connect(settings.discordToken);
+      window.kenku.connect(settings.fluxerUrl, settings.fluxerToken);
     }
 
     return () => {
@@ -73,27 +78,42 @@ export function Settings({ open, onClose }: SettingsProps) {
   }, []);
 
   useEffect(() => {
-    window.kenku.on("DISCORD_READY", () => {
+    window.kenku.on("FLUXER_READY", () => {
       dispatch(setStatus("ready"));
     });
-    window.kenku.on("DISCORD_DISCONNECTED", () => {
+    window.kenku.on("FLUXER_DISCONNECTED", () => {
       dispatch(setStatus("disconnected"));
     });
 
     return () => {
-      window.kenku.removeAllListeners("DISCORD_READY");
-      window.kenku.removeAllListeners("DISCORD_DISCONNECTED");
+      window.kenku.removeAllListeners("FLUXER_READY");
+      window.kenku.removeAllListeners("FLUXER_DISCONNECTED");
     };
   }, [dispatch]);
 
-  const discordSettings = (
+  const fluxerSettings = (
     <Stack spacing={1}>
       <TextField
-        autoFocus
+        margin="dense"
+        size="small"
+        id="server-url"
+        label="Server URL"
+        fullWidth
+        variant="standard"
+        autoComplete="off"
+        InputLabelProps={{
+          shrink: true,
+        }}
+        value={settings.fluxerUrl}
+        onChange={handleFluxerUrlChange}
+        disabled={connection.status !== "disconnected"}
+        helperText="Enter your Fluxer server URL"
+      />
+      <TextField
         margin="dense"
         size="small"
         id="token"
-        label="Token"
+        label="Bot Token"
         type="password"
         fullWidth
         variant="standard"
@@ -101,14 +121,18 @@ export function Settings({ open, onClose }: SettingsProps) {
         InputLabelProps={{
           shrink: true,
         }}
-        value={settings.discordToken}
-        onChange={handleDiscordTokenChange}
+        value={settings.fluxerToken}
+        onChange={handleFluxerTokenChange}
         disabled={connection.status !== "disconnected"}
         helperText="Enter your bot's token"
       />
       <Button
-        disabled={connection.status === "connecting" || !settings.discordToken}
-        onClick={handleDiscordConnect}
+        disabled={
+          connection.status === "connecting" ||
+          !settings.fluxerUrl ||
+          !settings.fluxerToken
+        }
+        onClick={handleFluxerConnect}
         fullWidth
         variant="outlined"
         size="small"
@@ -122,7 +146,7 @@ export function Settings({ open, onClose }: SettingsProps) {
         )}
       </Button>
       <Link
-        href="https://kenku.fm/docs/getting-a-discord-token"
+        href="https://docs.fluxer.app"
         variant="caption"
         textAlign="center"
         target="_blank"
@@ -358,8 +382,8 @@ export function Settings({ open, onClose }: SettingsProps) {
         Settings
       </DialogTitle>
       <DialogContent>
-        <DialogContentText>Discord</DialogContentText>
-        {discordSettings}
+        <DialogContentText>Fluxer</DialogContentText>
+        {fluxerSettings}
         <Divider sx={{ mb: 2 }} />
         <DialogContentText>Remote</DialogContentText>
         {remoteSettings}

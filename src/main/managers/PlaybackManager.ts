@@ -1,26 +1,27 @@
-import { createAudioResource } from "@discordjs/voice";
 import { BrowserWindow } from "electron";
-import { DiscordBroadcast } from "../broadcast/DiscordBroadcast";
+import { FluxerBroadcast } from "../broadcast/FluxerBroadcast";
 import { AudioCaptureManagerMain } from "./AudioCaptureManagerMain";
 
 export class PlaybackManager {
-  discord: DiscordBroadcast;
+  fluxer: FluxerBroadcast;
   audioCaptureManager: AudioCaptureManagerMain;
 
   constructor(window: BrowserWindow) {
-    this.discord = new DiscordBroadcast(window);
+    this.fluxer = new FluxerBroadcast(window);
     this.audioCaptureManager = new AudioCaptureManagerMain();
-    this.audioCaptureManager.on("streamStart", (stream) => {
-      const resource = createAudioResource(stream);
-      this.discord.audioPlayer.play(resource);
+    this.audioCaptureManager.on("streamStart", (channels, sampleRate) => {
+      this.fluxer.startStream(sampleRate, channels);
+    });
+    this.audioCaptureManager.on("data", (data) => {
+      this.fluxer.writePcm(data);
     });
     this.audioCaptureManager.on("streamEnd", () => {
-      this.discord.audioPlayer.stop();
+      this.fluxer.stopStream();
     });
   }
 
   destroy() {
-    this.discord.destroy();
+    this.fluxer.destroy();
     this.audioCaptureManager.destroy();
   }
 }

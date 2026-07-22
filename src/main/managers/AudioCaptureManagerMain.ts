@@ -1,14 +1,13 @@
 import { BrowserWindow, ipcMain, webContents } from "electron";
 import { TypedEmitter } from "tiny-typed-emitter";
-import { Readable } from "stream";
 import { WebSocketServer, WebSocket } from "ws";
-import prism from "prism-media";
 
 declare const AUDIO_CAPTURE_WINDOW_WEBPACK_ENTRY: string;
 declare const AUDIO_CAPTURE_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
 interface AudioCaptureManagerEvents {
-  streamStart: (stream: Readable) => void;
+  streamStart: (channels: number, sampleRate: number) => void;
+  data: (data: Buffer) => void;
   streamEnd: () => void;
 }
 
@@ -19,7 +18,7 @@ interface AudioCaptureManagerEvents {
  */
 export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEvents> {
   _browserWindow: BrowserWindow;
-  _encoder?: prism.opus.Encoder;
+  _streaming = false;
   _wss: WebSocketServer;
 
   constructor() {
@@ -149,30 +148,22 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
   _handleStreamStart = (
     _: Electron.IpcMainEvent,
     channels: number,
-    frameSize: number,
+    _frameSize: number,
     sampleRate: number
   ) => {
-    this._encoder?.end();
-
-    // Create a pipeline for converting raw PCM data into opus packets
-    const encoder = new prism.opus.Encoder({
-      channels: channels,
-      frameSize: frameSize,
-      rate: sampleRate,
-    });
-    this._encoder = encoder;
-
-    // Setup any listener streams
-    this.emit("streamStart", encoder);
+    this._streaming = true;
+    // Emit the raw PCM stream format; consumers encode/transport as needed
+    this.emit("streamStart", channels, sampleRate);
   };
 
   _handleStreamData = async (data: Buffer) => {
-    this._encoder?.write(data);
+    if (this._streaming) {
+      this.emit("data", data);
+    }
   };
 
   _handleStreamEnd = () => {
-    this._encoder?.end();
-    this._encoder = undefined;
+    this._streaming = false;
     this.emit("streamEnd");
   };
 

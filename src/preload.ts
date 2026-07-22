@@ -9,11 +9,11 @@ type Channel =
   | "FATAL_ERROR"
   | "MESSAGE"
   | "INFO"
-  | "DISCORD_READY"
-  | "DISCORD_DISCONNECTED"
-  | "DISCORD_GUILDS"
-  | "DISCORD_CHANNEL_JOINED"
-  | "DISCORD_CHANNEL_LEFT"
+  | "FLUXER_READY"
+  | "FLUXER_DISCONNECTED"
+  | "FLUXER_GUILDS"
+  | "FLUXER_CHANNEL_JOINED"
+  | "FLUXER_CHANNEL_LEFT"
   | "SHOW_CONTROLS"
   | "BROWSER_VIEW_DID_NAVIGATE"
   | "BROWSER_VIEW_TITLE_UPDATED"
@@ -29,11 +29,11 @@ const validChannels: Channel[] = [
   "FATAL_ERROR",
   "MESSAGE",
   "INFO",
-  "DISCORD_READY",
-  "DISCORD_DISCONNECTED",
-  "DISCORD_GUILDS",
-  "DISCORD_CHANNEL_JOINED",
-  "DISCORD_CHANNEL_LEFT",
+  "FLUXER_READY",
+  "FLUXER_DISCONNECTED",
+  "FLUXER_GUILDS",
+  "FLUXER_CHANNEL_JOINED",
+  "FLUXER_CHANNEL_LEFT",
   "SHOW_CONTROLS",
   "BROWSER_VIEW_DID_NAVIGATE",
   "BROWSER_VIEW_TITLE_UPDATED",
@@ -51,17 +51,17 @@ ipcRenderer.on("BROWSER_VIEW_LOADED", (_, viewId: number) => {
 });
 
 const api = {
-  connect: (token: string) => {
-    ipcRenderer.send("DISCORD_CONNECT", token);
+  connect: (url: string, token: string) => {
+    ipcRenderer.send("FLUXER_CONNECT", url, token);
   },
   disconnect: () => {
-    ipcRenderer.send("DISCORD_DISCONNECT");
+    ipcRenderer.send("FLUXER_DISCONNECT");
   },
   joinChannel: (channelId: string) => {
-    ipcRenderer.send("DISCORD_JOIN_CHANNEL", channelId);
+    ipcRenderer.send("FLUXER_JOIN_CHANNEL", channelId);
   },
   leaveChannel: (channelId: string) => {
-    ipcRenderer.send("DISCORD_LEAVE_CHANNEL", channelId);
+    ipcRenderer.send("FLUXER_LEAVE_CHANNEL", channelId);
   },
   createBrowserView: async (
     url: string,

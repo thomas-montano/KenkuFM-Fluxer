@@ -30,24 +30,24 @@ export function OutputListItems() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    window.kenku.on("DISCORD_GUILDS", (args) => {
+    window.kenku.on("FLUXER_GUILDS", (args) => {
       const guilds = args[0];
       dispatch(setGuilds(guilds));
     });
 
-    window.kenku.on("DISCORD_CHANNEL_LEFT", (args) => {
+    window.kenku.on("FLUXER_CHANNEL_LEFT", (args) => {
       const id = args[0];
       dispatch(removeOutput(id));
     });
 
-    window.kenku.on("DISCORD_CHANNEL_JOINED", (args) => {
+    window.kenku.on("FLUXER_CHANNEL_JOINED", (args) => {
       dispatch(addOutput(args[0]));
     });
 
     return () => {
-      window.kenku.removeAllListeners("DISCORD_GUILDS");
-      window.kenku.removeAllListeners("DISCORD_CHANNEL_LEFT");
-      window.kenku.removeAllListeners("DISCORD_CHANNEL_JOINED");
+      window.kenku.removeAllListeners("FLUXER_GUILDS");
+      window.kenku.removeAllListeners("FLUXER_CHANNEL_LEFT");
+      window.kenku.removeAllListeners("FLUXER_CHANNEL_JOINED");
     };
   }, [dispatch]);
 
@@ -82,7 +82,7 @@ export function OutputListItems() {
               guildChannel = id;
             }
           }
-          // Discord only allows for one channel to be joined per guild so we need to leave
+          // Fluxer only allows for one channel to be joined per guild so we need to leave
           // a channel if it's in the same guild as the one we're about to join
           if (guildChannel) {
             dispatch(removeOutput(guildChannel));

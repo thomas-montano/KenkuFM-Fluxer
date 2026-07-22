@@ -84,7 +84,7 @@ export function ActionDrawer() {
                   variant="caption"
                   onClick={() => setSettingsOpen(true)}
                 >
-                  Discord
+                  Fluxer
                 </Link>{" "}
                 for more outputs
               </Typography>

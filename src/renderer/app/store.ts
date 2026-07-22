@@ -56,11 +56,25 @@ const migrations: any = {
       },
     };
   },
+  // Port from Discord to Fluxer: drop the unused Discord token and add the
+  // Fluxer server URL / bot token settings.
+  5: (state: any): RootState => {
+    const settings = { ...(state.settings ?? {}) };
+    delete settings.discordToken;
+    return {
+      ...state,
+      settings: {
+        ...settings,
+        fluxerUrl: "https://your-fluxer-server.com",
+        fluxerToken: "",
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: "root",
-  version: 4,
+  version: 5,
   storage,
   whitelist: ["bookmarks", "settings"],
   migrate: createMigrate(migrations, { debug: false }),

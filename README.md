@@ -2,12 +2,12 @@
 
 # Kenku FM
 
-Kenku FM is a desktop application for Windows, MacOS and Linux designed to be the easiest way to share music in a Discord voice call.
+Kenku FM is a desktop application for Windows, MacOS and Linux designed to be the easiest way to share music in a [Fluxer](https://github.com/fluxerapp/fluxer) voice call. This fork replaces the original Discord integration with a self-hosted Fluxer server.
 
-- Use the Kenku Player interface to share your **local music** and sound effects to your discord calls.
+- Use the Kenku Player interface to share your **local music** and sound effects to your Fluxer calls.
 - Use the built in web browser to share audio from your favourite websites like **YouTube** and **Spotify**.
 - Trigger and control sounds with the Kenku FM plugin for the **Elgato Stream Deck**.
-- If you already have a **virtual audio cable** setup use Kenku FM as an easy way to connect to Discord with your existing software.
+- If you already have a **virtual audio cable** setup use Kenku FM as an easy way to connect to Fluxer with your existing software.
 
 <p align="center">
   <img src="./docs/example.png" alt="Kenku FM Interface" width="738">
@@ -25,12 +25,12 @@ Docs on using Kenku FM can be found [here](https://www.kenku.fm/docs).
 
 1. Kenku FM is an [Electron](https://www.electronjs.org/) application primarily written in [Typescript](https://www.typescriptlang.org/) and [React](https://reactjs.org/).
 2. Electron browser views are used to display external web content or the built in audio player app.
-3. The user creates and provides their own Discord bot token to connect to Discord.
-4. The Electron media capture API is used to capture audio from each browser view. The audio is then mixed using a Web Audio Context and sent to a Discord voice call using [Eris](https://github.com/abalabahaha/eris).
+3. The user creates and provides their own Fluxer bot token and server URL to connect to their Fluxer instance.
+4. The Electron media capture API is used to capture audio from each browser view. The audio is then mixed using a Web Audio Context and sent to a Fluxer voice call using [LiveKit](https://github.com/livekit/node-sdks).
 5. An optional HTTP server allows users to trigger and control the playback of the built in player app. An example of this in action can be seen with our [Stream Deck plugin](https://www.kenku.fm/docs/using-kenku-remote).
 6. Enable external inputs to allow mixing in OS audio inputs.
-7. Enable multiple outputs to send your audio to multiple Discord servers at once.
-8. If you plan to use Kenku FM for streaming you can also output to your local machine for capture by a streaming app and a discord call for your players at the same time.
+7. Enable multiple outputs to send your audio to multiple Fluxer servers at once.
+8. If you plan to use Kenku FM for streaming you can also output to your local machine for capture by a streaming app and a Fluxer call for your players at the same time.
 
 ## Building
 
@@ -70,7 +70,7 @@ If any of these change we'll be happy to update Kenku FM with full support for p
 
 All source files can be found in the `src` folder, our build scripts for CI/CD are in the `publish` folder.
 
-Within the `src` folder the `index.ts` file and `main` folder contains the code for the main process of Electron. This includes things like managing the Discord connection, creating the HTTP server for the remote control and managing the browser views.
+Within the `src` folder the `index.ts` file and `main` folder contains the code for the main process of Electron. This includes things like managing the Fluxer connection, creating the HTTP server for the remote control and managing the browser views.
 
 The `renderer.ts` file and `renderer` folder contains code for the renderer process of Electron. The renderer is written in React and uses Redux Toolkit for state management.
 
