@@ -1,8 +1,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-# Kenku FM
+# Kenku for Fluxer
 
-Kenku FM is a desktop application for Windows, MacOS and Linux designed to be the easiest way to share music in a [Fluxer](https://github.com/fluxerapp/fluxer) voice call. This fork replaces the original Discord integration with a self-hosted Fluxer server.
+Kenku for Fluxer is a desktop application for Windows, MacOS and Linux designed to be the easiest way to share music in a [Fluxer](https://github.com/fluxerapp/fluxer) voice call. This fork replaces the original Discord integration with a self-hosted Fluxer server.
 
 - Use the Kenku Player interface to share your **local music** and sound effects to your Fluxer calls.
 - Use the built in web browser to share audio from your favourite websites like **YouTube** and **Spotify**. A built-in **ad blocker** (powered by Ghostery filter lists) runs on the browser tabs.
