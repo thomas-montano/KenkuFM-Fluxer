@@ -107,6 +107,7 @@ export function Settings({ open, onClose }: SettingsProps) {
         value={settings.fluxerUrl}
         onChange={handleFluxerUrlChange}
         disabled={connection.status !== "disconnected"}
+        placeholder="https://your-fluxer-server.com"
         helperText="Enter your Fluxer server URL"
       />
       <TextField

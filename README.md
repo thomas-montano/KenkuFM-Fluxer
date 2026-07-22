@@ -94,7 +94,15 @@ The `audioCapture` folder is a third renderer entry point (also registered in `f
 
 ## Licence
 
-Kenku FM is licensed under the GNU General Public Licence v3.0.
+Kenku FM is licensed under the GNU General Public Licence v3.0. See the [LICENSE](./LICENSE) file for the full text. This fork is distributed under the same licence.
+
+### Attribution & modifications
+
+Kenku FM is originally developed by [Owlbear Rodeo](https://www.owlbear.rodeo) — see the upstream project at [owlbear-rodeo/kenku-fm](https://github.com/owlbear-rodeo/kenku-fm). Copyright for the original work remains with its respective authors.
+
+In accordance with section 5 of the GPL, this is a **modified version**. The changes in this fork, made in July 2026, replace the original Discord voice integration with support for a self-hosted [Fluxer](https://github.com/fluxerapp/fluxer) server (Fluxer REST/gateway APIs and LiveKit voice), add a built-in ad blocker, and migrate the build tooling from Yarn to npm.
+
+This is an **unofficial fork and is not affiliated with or endorsed by Owlbear Rodeo.** "Kenku FM" is used here only to identify the upstream project it derives from.
 
 ## Contributing
 

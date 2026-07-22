@@ -17,7 +17,7 @@ export interface SettingsState {
 }
 
 const initialState: SettingsState = {
-  fluxerUrl: "https://your-fluxer-server.com",
+  fluxerUrl: "",
   fluxerToken: "",
   urlBarEnabled: true,
   remoteEnabled: false,

@@ -65,7 +65,7 @@ const migrations: any = {
       ...state,
       settings: {
         ...settings,
-        fluxerUrl: "https://your-fluxer-server.com",
+        fluxerUrl: "",
         fluxerToken: "",
       },
     };
