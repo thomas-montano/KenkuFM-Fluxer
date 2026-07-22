@@ -27,27 +27,9 @@ const config = {
       },
     },
     {
-      name: "@electron-forge/maker-deb",
-      config: {
-        name: "kenku_fm",
-        productName: "Kenku FM",
-        homepage: "https://github.com/thomas-montano/KenkuFM-Fluxer",
-        icon: path.join(__dirname, "src", "assets", "icons", "256x256.png"),
-      },
-    },
-    {
       // On Windows the zip doubles as a portable, no-install build.
       name: "@electron-forge/maker-zip",
-      platforms: ["linux", "darwin", "win32"],
-    },
-    {
-      name: "@electron-forge/maker-rpm",
-      config: {
-        name: "kenku_fm",
-        productName: "Kenku FM",
-        homepage: "https://github.com/thomas-montano/KenkuFM-Fluxer",
-        icon: path.join(__dirname, "src", "assets", "icons", "256x256.png"),
-      },
+      platforms: ["win32"],
     },
   ],
   plugins: [

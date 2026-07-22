@@ -2,7 +2,7 @@
 
 # Kenku for Fluxer
 
-Kenku for Fluxer is a desktop application for Windows, MacOS and Linux designed to be the easiest way to share music in a [Fluxer](https://github.com/fluxerapp/fluxer) voice call. This fork replaces the original Discord integration with a self-hosted Fluxer server.
+Kenku for Fluxer is a desktop application for Windows designed to be the easiest way to share music in a [Fluxer](https://github.com/fluxerapp/fluxer) voice call. This fork replaces the original Discord integration with a self-hosted Fluxer server.
 
 - Use the Kenku Player interface to share your **local music** and sound effects to your Fluxer calls.
 - Use the built in web browser to share audio from your favourite websites like **YouTube** and **Spotify**. A built-in **ad blocker** (powered by Ghostery filter lists) runs on the browser tabs.
@@ -72,13 +72,7 @@ The stream deck plugin can be found [here](https://github.com/owlbear-rodeo/kenk
 
 As we act as a web browser in order to play protected media we need to support Google's Widevine [Content Decryption Module (CDM)](https://www.widevine.com/). To do this Kenku FM uses the [Electron for Content Security](https://github.com/castlabs/electron-releases) version of Electron provided by Castlabs.
 
-This allows us to support loading of DRM protected media on Windows and MacOS.
-
-Unfortunately the story isn't as simple on Linux. While we are able to provide support for protected media on x64 Linux builds, Linux doesn't support the Widevine Verified Media Path (VMP) this means that sites that require the use of VMP will not work. Unfortunately at this time Spotify requires VMP. You can read more about VMP and Linux [here](https://arstechnica.com/gadgets/2020/08/hbo-max-cranks-up-the-widevine-drm-leaves-linux-users-in-the-cold/).
-
-Next Google doesn't provide a publicly available ARM Linux version of their Widevine Content Delivery Module so we are unable to provide any protected media support on ARM Linux.
-
-If any of these change we'll be happy to update Kenku FM with full support for protected media on Linux.
+This allows us to support loading of DRM protected media on Windows.
 
 ## Project Structure
 
