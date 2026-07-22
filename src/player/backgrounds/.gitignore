@@ -1,5 +1,28 @@
+# By default, ignore image files in this folder so that large or licensed
+# stock art is never committed by accident. The license-free default
+# backgrounds listed below are explicitly whitelisted so they ship with the app.
 *.jpg
 *.jpeg
 *.png
 *.svg
 *.webp
+
+# License-free default backgrounds (Pexels License — see ATTRIBUTION.md)
+!autumn.jpg
+!beach.jpg
+!butterflys.jpg
+!cathedral.jpg
+!haunted.jpg
+!lines.jpg
+!mountain.jpg
+!sand.jpg
+!skulls.jpg
+!sky.jpg
+!smoke.jpg
+!sparks.jpg
+!stars.jpg
+!texture.jpg
+!tree.jpg
+!veins.jpg
+!volcano.jpg
+!winter.jpg

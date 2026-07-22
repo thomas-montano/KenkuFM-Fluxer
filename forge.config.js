@@ -6,6 +6,16 @@ const config = {
     out: "./out",
     icon: "./src/assets/icon",
     appBundleId: "com.kenku.fm",
+    // This project uses the castlabs Electron build (electron dep pinned to
+    // "#v37.6.0+wvcus"). Those "+wvcus" binaries only exist in the castlabs
+    // release repo, so point @electron/get at the castlabs mirror — otherwise
+    // packaging 404s trying to fetch them from electron/electron.
+    download: {
+      mirrorOptions: {
+        mirror:
+          "https://github.com/castlabs/electron-releases/releases/download/",
+      },
+    },
   },
   makers: [
     {
