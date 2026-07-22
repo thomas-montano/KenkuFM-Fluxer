@@ -13,7 +13,6 @@ import icon from "./assets/icon.png";
 import { getMalformedUserAgent, getUserAgent } from "./main/userAgent";
 import { SessionManager } from "./main/managers/SessionManager";
 import { enableAdBlocker } from "./main/adBlocker";
-import { runAutoUpdate } from "./autoUpdate";
 import { getSavedBounds, saveWindowBounds } from "./bounds";
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
@@ -82,10 +81,6 @@ const createWindow = (): BrowserWindow => {
   });
 
   saveWindowBounds(mainWindow);
-
-  if (app.isPackaged) {
-    runAutoUpdate(mainWindow);
-  }
 
   return mainWindow;
 };

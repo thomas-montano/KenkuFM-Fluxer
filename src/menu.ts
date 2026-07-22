@@ -111,7 +111,9 @@ const template: any = [
         label: "Learn More",
         click: async () => {
           const { shell } = require("electron");
-          await shell.openExternal("https://kenku.fm");
+          await shell.openExternal(
+            "https://github.com/thomas-montano/KenkuFM-Fluxer"
+          );
         },
       },
       ...(!isMac ? [{ role: "about" }] : []),

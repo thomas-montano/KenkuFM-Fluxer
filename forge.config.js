@@ -31,34 +31,22 @@ const config = {
       config: {
         name: "kenku_fm",
         productName: "Kenku FM",
-        homepage: "https://kenku.fm",
+        homepage: "https://github.com/thomas-montano/KenkuFM-Fluxer",
         icon: path.join(__dirname, "src", "assets", "icons", "256x256.png"),
       },
     },
     {
+      // On Windows the zip doubles as a portable, no-install build.
       name: "@electron-forge/maker-zip",
-      platforms: ["linux", "darwin"],
+      platforms: ["linux", "darwin", "win32"],
     },
     {
       name: "@electron-forge/maker-rpm",
       config: {
         name: "kenku_fm",
         productName: "Kenku FM",
-        homepage: "https://kenku.fm",
+        homepage: "https://github.com/thomas-montano/KenkuFM-Fluxer",
         icon: path.join(__dirname, "src", "assets", "icons", "256x256.png"),
-      },
-    },
-  ],
-  publishers: [
-    {
-      name: "@electron-forge/publisher-github",
-      config: {
-        repository: {
-          owner: "owlbear-rodeo",
-          name: "kenku-fm",
-        },
-        prerelease: false,
-        draft: false,
       },
     },
   ],

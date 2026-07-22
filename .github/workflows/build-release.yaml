@@ -1,9 +1,9 @@
 name: Build Fluxer package (nightly)
 
-# Builds a downloadable Windows installer on every push to main and publishes it
-# to a rolling "nightly" pre-release. Uses npm and the license-free background
-# images committed in the repo, so it needs no private asset repo and no signing
-# secrets. The build is unsigned.
+# Builds a Windows installer plus a portable zip on every push to main and
+# publishes them to a rolling "nightly" pre-release. Uses npm and the
+# license-free background images committed in the repo, so it needs no private
+# asset repo and no signing secrets. The build is unsigned.
 
 on:
   push:
@@ -36,10 +36,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Call electron-forge directly to bypass env-cmd (no .env in CI, and the
-      # nightly build is unsigned so no signing env is required).
       - name: Make package
-        run: npx electron-forge make
+        run: npm run make
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -54,13 +52,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # Mark the zip maker's output as the portable build in the asset list.
+          for z in out/make/zip/win32/x64/*.zip; do
+            mv "$z" "${z%.zip}-portable.zip"
+          done
           # Replace the previous nightly so there is always a single, current build.
           gh release delete nightly --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
           # Glob expansion keeps each filename a separate arg, so spaces in names
           # (e.g. "Kenku FM-1.5.5 Setup.exe") are handled correctly.
-          gh release create nightly out/make/squirrel.windows/*/* \
+          gh release create nightly out/make/squirrel.windows/*/* out/make/zip/win32/x64/*.zip \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --prerelease \
             --title "Nightly build (${GITHUB_SHA:0:7})" \
-            --notes "Automated unsigned Windows build from commit ${GITHUB_SHA}. Windows may warn about an unrecognized publisher; DRM/Widevine playback is unavailable in unsigned builds."
+            --notes "Automated unsigned Windows build from commit ${GITHUB_SHA}. The Setup.exe installs the app; the -portable.zip runs in place with no install (extract and run kenku-fm.exe). Windows may warn about an unrecognized publisher; DRM/Widevine playback is unavailable in unsigned builds."

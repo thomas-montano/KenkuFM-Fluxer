@@ -17,6 +17,8 @@ Kenku for Fluxer is a desktop application for Windows, MacOS and Linux designed 
 
 This is a Fluxer fork, so the prebuilt binaries at [kenku.fm](https://www.kenku.fm) and the upstream [GitHub releases](https://github.com/owlbear-rodeo/kenku-fm/releases) **will not work** — those are the original Discord build. To run this fork, build it from source (see [Building](#building)) or use the binaries from your own release pipeline.
 
+The nightly release provides two Windows builds: a `Setup.exe` installer, and a portable `-portable.zip` that needs no installation — extract it into a folder (the archive has no top-level directory) and run `kenku-fm.exe`. (The portable build still keeps its settings in the standard per-user app data folder, not in the extracted folder.)
+
 Instead of a Discord bot, you connect by providing your Fluxer **server URL** and a **bot token** for your Fluxer instance.
 
 ## Docs
