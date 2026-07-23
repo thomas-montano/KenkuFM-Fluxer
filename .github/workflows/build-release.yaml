@@ -57,14 +57,19 @@ jobs:
             mv "$z" "${z%.zip}-portable.zip"
           done
           # Replace the previous nightly so there is always a single, current build.
-          gh release delete nightly --cleanup-tag --yes --repo "$GITHUB_REPOSITORY" || true
+          # Delete only the release, not the tag: move the tag to this commit
+          # ourselves so it always exists at create time. A release whose tag is
+          # missing is rendered as a draft regardless of --prerelease, which the
+          # old --cleanup-tag + immediate recreate could trigger via eventual
+          # consistency on tag deletion.
+          gh release delete nightly --yes --repo "$GITHUB_REPOSITORY" || true
+          git push --force origin "$GITHUB_SHA:refs/tags/nightly"
           # Glob expansion keeps each filename a separate arg, so spaces in names
           # (e.g. "Kenku FM-1.5.5 Setup.exe") are handled correctly. Ship only the
           # Setup.exe from the squirrel maker; the .nupkg and RELEASES files exist
           # solely for Squirrel auto-updates, which this app does not use.
           gh release create nightly out/make/squirrel.windows/*/*Setup.exe out/make/zip/win32/x64/*.zip \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
             --prerelease \
             --title "Nightly build (${GITHUB_SHA:0:7})" \
             --notes "Automated unsigned Windows build from commit ${GITHUB_SHA}. The Setup.exe installs the app; the -portable.zip runs in place with no install (extract and run kenku-fm.exe). Windows may warn about an unrecognized publisher; DRM/Widevine playback is unavailable in unsigned builds."
