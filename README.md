@@ -76,7 +76,7 @@ This allows us to support loading of DRM protected media on Windows.
 
 ## Project Structure
 
-All source files can be found in the `src` folder, our build scripts for CI/CD are in the `publish` folder.
+All source files can be found in the `src` folder. The CI/CD workflow that builds the nightly release is in `.github/workflows`.
 
 Within the `src` folder the `index.ts` file and `main` folder contains the code for the main process of Electron. This includes things like managing the Fluxer connection, creating the HTTP server for the remote control and managing the browser views.
 
