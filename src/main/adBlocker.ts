@@ -6,16 +6,20 @@ import { ElectronBlocker } from "@ghostery/adblocker-electron";
 // How long a cached engine is considered fresh before we re-download the
 // prebuilt filter lists (24h).
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+// Startup waits on the download, so never let a stalled request hang it.
+const DOWNLOAD_TIMEOUT_MS = 15 * 1000;
 
 function cacheFile(): string {
   return path.join(app.getPath("userData"), "adblocker-engine.bin");
 }
 
-async function loadFromCache(): Promise<ElectronBlocker | null> {
+async function loadFromCache(
+  allowStale = false,
+): Promise<ElectronBlocker | null> {
   try {
     const file = cacheFile();
     const stat = await fs.stat(file);
-    if (Date.now() - stat.mtimeMs > CACHE_TTL_MS) {
+    if (!allowStale && Date.now() - stat.mtimeMs > CACHE_TTL_MS) {
       return null;
     }
     const buf = await fs.readFile(file);
@@ -48,10 +52,25 @@ export async function enableAdBlocker(session: Session): Promise<void> {
   try {
     let blocker = await loadFromCache();
     if (!blocker) {
-      // Full list set: ads + tracking + annoyances (includes uBlock Origin's
-      // YouTube rules and scriptlet resources).
-      blocker = await ElectronBlocker.fromPrebuiltFull(fetch);
-      await saveToCache(blocker);
+      try {
+        // Full list set: ads + tracking + annoyances (includes uBlock Origin's
+        // YouTube rules and scriptlet resources).
+        blocker = await ElectronBlocker.fromPrebuiltFull(
+          (url: string, init?: RequestInit) =>
+            fetch(url, {
+              ...init,
+              signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
+            }),
+        );
+        await saveToCache(blocker);
+      } catch (err) {
+        // Offline or the list host is down: an outdated engine beats none
+        blocker = await loadFromCache(true);
+        if (!blocker) {
+          throw err;
+        }
+        console.warn("Using outdated ad blocker lists:", err);
+      }
     }
     blocker.enableBlockingInSession(session);
     console.log("Ad blocker enabled");
