@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from "electron";
+import { app, BrowserWindow, Menu, shell } from "electron";
 
 const isMac = process.platform === "darwin";
 
@@ -71,7 +71,7 @@ const template: any = [
         accelerator: isMac ? "Cmd+T" : "Ctrl+T",
         click: () => {
           const windows = BrowserWindow.getAllWindows();
-          for (let window of windows) {
+          for (const window of windows) {
             window.webContents.send("BROWSER_VIEW_NEW_TAB");
           }
         },
@@ -81,7 +81,7 @@ const template: any = [
         accelerator: isMac ? "Cmd+W" : "Ctrl+W",
         click: () => {
           const windows = BrowserWindow.getAllWindows();
-          for (let window of windows) {
+          for (const window of windows) {
             window.webContents.send("BROWSER_VIEW_CLOSE_TAB");
           }
         },
@@ -110,7 +110,6 @@ const template: any = [
       {
         label: "Learn More",
         click: async () => {
-          const { shell } = require("electron");
           await shell.openExternal(
             "https://github.com/thomas-montano/KenkuFM-Fluxer"
           );

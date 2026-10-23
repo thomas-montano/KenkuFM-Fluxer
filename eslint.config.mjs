@@ -27,5 +27,19 @@ export default defineConfig(
         }),
       ],
     },
+    rules: {
+      // A leading underscore marks a name as deliberately unused
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      // The remaining uses reach into untyped internals (Howler's sounds,
+      // webContents.destroy) or loose IPC payloads; flag them, don't fail
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
   },
 );

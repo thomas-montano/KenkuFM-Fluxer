@@ -1,6 +1,6 @@
 import blank from "../../assets/blank.png";
 // Import all images in this folder at build time
-// @ts-ignore
+// @ts-expect-error require.context is webpack-only and has no Node typings
 const images = require.context("./", false, /\.(png|jpe?g|svg|webp)$/);
 const keys = images.keys();
 

@@ -145,9 +145,7 @@ export const playlistPlaybackSlice = createSlice({
       if (state.queue && state.queue.playlistId === action.payload.playlistId) {
         state.queue.tracks.unshift(action.payload.trackId);
         // Increase all shuffled indices by one and add the new 0 index
-        state.queue.shuffled = state.queue.shuffled.map(
-          (index) => (index += 1),
-        );
+        state.queue.shuffled = state.queue.shuffled.map((index) => index + 1);
         state.queue.shuffled.unshift(0);
         // Bump current to make room
         state.queue.current += 1;
@@ -161,7 +159,7 @@ export const playlistPlaybackSlice = createSlice({
         state.queue.tracks.unshift(...action.payload.trackIds);
         // Increase all shuffled indices by one and add the new 0 index
         state.queue.shuffled = state.queue.shuffled.map(
-          (index) => (index += action.payload.trackIds.length),
+          (index) => index + action.payload.trackIds.length,
         );
 
         const trackValues = action.payload.trackIds.map((v, i) => i);

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Component, ErrorInfo, ReactNode } from "react";
 
 import Stack from "@mui/material/Stack";
 import styled from "@mui/material/styles/styled";
@@ -16,8 +16,6 @@ const WallPaper = styled("div")({
   background: "linear-gradient(#2D3143 0%, #1e2231 100%)",
   zIndex: -1,
 });
-
-import { Component, ErrorInfo, ReactNode } from "react";
 
 interface Props {
   children?: ReactNode;

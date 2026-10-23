@@ -23,6 +23,8 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock();
 let window: BrowserWindow | null = null;
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
+// The package ships no type declarations, so it's loaded with require().
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 if (require("electron-squirrel-startup")) {
   app.quit();
 }

@@ -76,7 +76,7 @@ export class FluxerApi {
           ? `Request to ${url} timed out`
           : `Could not reach ${url}: ${(err as Error).message}`;
       log(message);
-      throw new Error(message);
+      throw new Error(message, { cause: err });
     }
     if (!response.ok) {
       const body = await response.text().catch(() => "");
