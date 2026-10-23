@@ -84,6 +84,7 @@
     "ws": "^8.19.0"
   },
   "allowScripts": {
-    "electron-winstaller": true
+    "electron-winstaller": true,
+    "unrs-resolver": false
   }
 }
