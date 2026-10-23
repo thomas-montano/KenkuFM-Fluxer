@@ -51,9 +51,7 @@
     "node-loader": "^2.0.0",
     "style-loader": "^3.3.4",
     "ts-loader": "^9.5.1",
-    "typescript": "^5.3.3",
-    "worker-loader": "^3.0.8",
-    "worklet-loader": "^2.0.0"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@braintree/sanitize-url": "^7.1.1",

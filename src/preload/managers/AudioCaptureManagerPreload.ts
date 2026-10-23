@@ -1,7 +1,8 @@
 import { ipcRenderer } from "electron";
+// webpack imports the worklet as its source text (see webpack.renderer.config.js)
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import PCMStream from "./PCMStream.worklet";
+import PCMStreamSource from "./PCMStream.worklet";
 
 /** Sample rate of the audio context */
 const SAMPLE_RATE = 48000;
@@ -73,7 +74,14 @@ export class AudioCaptureManagerPreload {
     );
 
     // Create PCM stream node
-    await this._audioContext.audioWorklet.addModule(PCMStream);
+    const pcmStreamUrl = URL.createObjectURL(
+      new Blob([PCMStreamSource], { type: "text/javascript" })
+    );
+    try {
+      await this._audioContext.audioWorklet.addModule(pcmStreamUrl);
+    } finally {
+      URL.revokeObjectURL(pcmStreamUrl);
+    }
     const pcmStreamNode = new AudioWorkletNode(
       this._audioContext,
       "pcm-stream",

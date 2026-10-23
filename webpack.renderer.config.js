@@ -6,14 +6,10 @@ rules.push({
   use: [{ loader: "style-loader" }, { loader: "css-loader" }],
 });
 
+// Audio worklets are imported as source text and loaded from a Blob URL
 rules.push({
   test: /\.worklet\.js$/,
-  use: { loader: "worklet-loader", options: { inline: true } },
-});
-
-rules.push({
-  test: /\.worker\.js$/,
-  use: { loader: "worker-loader", options: { inline: "fallback" } },
+  type: "asset/source",
 });
 
 module.exports = {
