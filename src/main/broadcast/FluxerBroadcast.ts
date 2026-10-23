@@ -4,11 +4,12 @@ import {
   AudioSource,
   LocalAudioTrack,
   Room,
+  RoomEvent,
   TrackPublishOptions,
   TrackSource,
 } from "@livekit/rtc-node";
 import { FluxerApi, Guild } from "./FluxerApi";
-import { FluxerGateway } from "./FluxerGateway";
+import { FluxerGateway, VoiceServer } from "./FluxerGateway";
 
 /** Maximum amount of queued audio per room before frames are dropped */
 const MAX_QUEUED_MS = 1000;
@@ -20,10 +21,15 @@ const MAX_QUEUED_MS = 1000;
 class VoiceRoom {
   readonly channelId: string;
   readonly guildId: string;
+  /** Fluxer voice connection id, needed to leave the channel again */
+  readonly connectionId?: string;
+  /** Called when the room drops without `close()` (e.g. server kick) */
+  onUnexpectedDisconnect?: () => void;
   private room = new Room();
   private source: AudioSource;
   private track?: LocalAudioTrack;
   private trackSid?: string;
+  private closing = false;
 
   /** Serializes captureFrame calls so a slow room can't reorder frames */
   private chain: Promise<void> = Promise.resolve();
@@ -33,12 +39,19 @@ class VoiceRoom {
   constructor(
     channelId: string,
     guildId: string,
+    connectionId: string | undefined,
     sampleRate: number,
     channels: number,
   ) {
     this.channelId = channelId;
     this.guildId = guildId;
+    this.connectionId = connectionId;
     this.source = new AudioSource(sampleRate, channels);
+    this.room.on(RoomEvent.Disconnected, () => {
+      if (!this.closing) {
+        this.onUnexpectedDisconnect?.();
+      }
+    });
   }
 
   async connect(endpoint: string, token: string) {
@@ -87,6 +100,7 @@ class VoiceRoom {
   }
 
   async close() {
+    this.closing = true;
     try {
       if (this.trackSid) {
         await this.room.localParticipant?.unpublishTrack(this.trackSid);
@@ -107,7 +121,13 @@ export class FluxerBroadcast {
   window: BrowserWindow;
   private api?: FluxerApi;
   private gateway?: FluxerGateway;
+  /** Guilds fetched on READY, used to map a channel to its guild */
+  private guilds: Guild[] = [];
   private rooms = new Map<string, VoiceRoom>();
+  /** Channels with a join in flight, mapped to their guild */
+  private joining = new Map<string, string>();
+  /** Bumped on every teardown so stale async connect/join work can bail out */
+  private generation = 0;
 
   /** Current PCM stream format, set on startStream */
   private sampleRate = 48000;
@@ -130,14 +150,29 @@ export class FluxerBroadcast {
     this._teardown();
   }
 
-  private _teardown() {
+  /** Drop the connection; with `event`, tell the renderer each channel left */
+  private _teardown(event?: Electron.IpcMainEvent) {
+    this.generation++;
+    for (const channelId of [...this.rooms.keys(), ...this.joining.keys()]) {
+      event?.reply("FLUXER_CHANNEL_LEFT", channelId);
+    }
     for (const room of this.rooms.values()) {
+      this.gateway?.leaveVoice(room.guildId, room.connectionId);
       void room.close();
     }
     this.rooms.clear();
+    this.joining.clear();
     this.gateway?.destroy();
     this.gateway = undefined;
     this.api = undefined;
+    this.guilds = [];
+  }
+
+  /** Leave a joined channel: tell Fluxer first, then close the LiveKit room */
+  private _closeRoom(room: VoiceRoom) {
+    this.rooms.delete(room.channelId);
+    this.gateway?.leaveVoice(room.guildId, room.connectionId);
+    void room.close();
   }
 
   _handleConnect = async (
@@ -155,6 +190,7 @@ export class FluxerBroadcast {
     }
 
     this._teardown();
+    const generation = this.generation;
 
     try {
       const api = new FluxerApi(url, token);
@@ -164,10 +200,14 @@ export class FluxerBroadcast {
       console.log(
         `[FluxerBroadcast] Authenticated as ${user.username} (${user.id})`,
       );
-      this.api = api;
 
       const gatewayUrl = await api.getGatewayUrl();
+      if (generation !== this.generation) {
+        // Disconnected or reconnected while the REST calls were in flight
+        return;
+      }
       console.log(`[FluxerBroadcast] Gateway URL: ${gatewayUrl}`);
+      this.api = api;
       const gateway = new FluxerGateway(gatewayUrl, token);
       this.gateway = gateway;
 
@@ -175,7 +215,14 @@ export class FluxerBroadcast {
         event.reply("ERROR", message);
       });
       gateway.on("disconnected", () => {
+        if (this.gateway !== gateway) {
+          return;
+        }
+        // The gateway gave up for good, so stop streaming to voice as well
+        this._teardown(event);
         event.reply("FLUXER_DISCONNECTED");
+        event.reply("FLUXER_GUILDS", []);
+        event.reply("FLUXER_CHANNEL_JOINED", "local");
       });
 
       let readied = false;
@@ -187,7 +234,11 @@ export class FluxerBroadcast {
         event.reply("FLUXER_READY");
         event.reply("MESSAGE", "Connected");
         try {
-          const guilds: Guild[] = await api.getGuilds();
+          const guilds = await api.getGuilds();
+          if (generation !== this.generation) {
+            return;
+          }
+          this.guilds = guilds;
           event.reply("FLUXER_GUILDS", guilds);
         } catch (err) {
           event.reply(
@@ -199,6 +250,9 @@ export class FluxerBroadcast {
 
       gateway.connect();
     } catch (err) {
+      if (generation !== this.generation) {
+        return;
+      }
       this._teardown();
       event.reply("FLUXER_DISCONNECTED");
       event.reply("ERROR", `Error connecting to bot: ${(err as Error).message}`);
@@ -206,7 +260,7 @@ export class FluxerBroadcast {
   };
 
   _handleDisconnect = async (event: Electron.IpcMainEvent) => {
-    this._teardown();
+    this._teardown(event);
     event.reply("FLUXER_DISCONNECTED");
     event.reply("FLUXER_GUILDS", []);
     event.reply("FLUXER_CHANNEL_JOINED", "local");
@@ -216,7 +270,8 @@ export class FluxerBroadcast {
     event: Electron.IpcMainEvent,
     channelId: string,
   ) => {
-    if (!this.api || !this.gateway) {
+    const gateway = this.gateway;
+    if (!this.api || !gateway) {
       event.reply("FLUXER_CHANNEL_LEFT", channelId);
       event.reply(
         "ERROR",
@@ -224,71 +279,139 @@ export class FluxerBroadcast {
       );
       return;
     }
+    if (this.rooms.has(channelId)) {
+      event.reply("FLUXER_CHANNEL_JOINED", channelId);
+      return;
+    }
+    if (this.joining.has(channelId)) {
+      return;
+    }
 
-    const guildId = await this._resolveGuild(channelId);
+    // Claim the channel before any await so a leave sent right after this
+    // join (the renderer switches channels with leave + join) can cancel it.
+    const generation = this.generation;
+    this.joining.set(channelId, "");
+    // Join requests and leaves can interleave across the awaits below, so the
+    // join is only still wanted while it holds its claim in `joining`.
+    const stillWanted = () =>
+      generation === this.generation && this.joining.has(channelId);
+
+    let guildId: string | undefined;
+    try {
+      guildId = await this._resolveGuild(channelId);
+    } catch (err) {
+      if (stillWanted()) {
+        this.joining.delete(channelId);
+        event.reply("FLUXER_CHANNEL_LEFT", channelId);
+        event.reply(
+          "ERROR",
+          `Unable to join voice channel: ${(err as Error).message}`,
+        );
+      }
+      return;
+    }
+    if (!stillWanted()) {
+      return;
+    }
     if (!guildId) {
+      this.joining.delete(channelId);
       event.reply("FLUXER_CHANNEL_LEFT", channelId);
       event.reply("ERROR", "Unable to join voice channel: channel not found");
       return;
     }
 
-    // One channel per guild: close any existing room in the same guild
-    for (const [existingId, room] of this.rooms) {
+    // One channel per guild: leave any joined or joining channel in the same
+    // guild. A superseded join fails silently once it loses its claim.
+    for (const room of [...this.rooms.values()]) {
       if (room.guildId === guildId) {
-        await room.close();
-        this.rooms.delete(existingId);
-        event.reply("FLUXER_CHANNEL_LEFT", existingId);
+        this._closeRoom(room);
+        event.reply("FLUXER_CHANNEL_LEFT", room.channelId);
       }
     }
+    for (const [otherId, otherGuildId] of this.joining) {
+      if (otherGuildId === guildId && otherId !== channelId) {
+        this.joining.delete(otherId);
+        event.reply("FLUXER_CHANNEL_LEFT", otherId);
+      }
+    }
+    this.joining.set(channelId, guildId);
 
+    let server: VoiceServer | undefined;
+    let room: VoiceRoom | undefined;
     try {
-      const { endpoint, token } = await this.gateway.joinVoice(
-        guildId,
-        channelId,
-      );
-      const room = new VoiceRoom(
+      server = await gateway.joinVoice(guildId, channelId);
+      room = new VoiceRoom(
         channelId,
         guildId,
+        server.connectionId,
         this.sampleRate,
         this.channels,
       );
-      await room.connect(endpoint, token);
-      this.rooms.set(channelId, room);
-      event.reply("FLUXER_CHANNEL_JOINED", channelId);
+      await room.connect(server.endpoint, server.token);
     } catch (err) {
-      this.gateway.leaveVoice(guildId);
-      event.reply("FLUXER_CHANNEL_LEFT", channelId);
-      event.reply(
-        "ERROR",
-        `Error connecting to voice channel: ${(err as Error).message}`,
-      );
+      gateway.leaveVoice(guildId, server?.connectionId);
+      void room?.close();
+      if (stillWanted()) {
+        this.joining.delete(channelId);
+        event.reply("FLUXER_CHANNEL_LEFT", channelId);
+        event.reply(
+          "ERROR",
+          `Error connecting to voice channel: ${(err as Error).message}`,
+        );
+      }
+      return;
     }
+
+    if (!stillWanted()) {
+      // Left, superseded or disconnected while LiveKit was connecting
+      gateway.leaveVoice(guildId, server.connectionId);
+      void room.close();
+      return;
+    }
+    this.joining.delete(channelId);
+    room.onUnexpectedDisconnect = () => {
+      if (this.rooms.get(channelId) !== room) {
+        return;
+      }
+      this._closeRoom(room);
+      event.reply("FLUXER_CHANNEL_LEFT", channelId);
+      event.reply("ERROR", "Disconnected from the voice channel");
+    };
+    this.rooms.set(channelId, room);
+    event.reply("FLUXER_CHANNEL_JOINED", channelId);
   };
 
   _handleLeaveChannel = async (
     event: Electron.IpcMainEvent,
     channelId: string,
   ) => {
+    if (this.joining.delete(channelId)) {
+      this.gateway?.cancelJoin(channelId);
+    }
     const room = this.rooms.get(channelId);
     if (room) {
-      this.rooms.delete(channelId);
-      await room.close();
-      this.gateway?.leaveVoice(room.guildId);
+      this._closeRoom(room);
     }
     event.reply("FLUXER_CHANNEL_LEFT", channelId);
   };
 
+  /** Find the guild a voice channel belongs to, refetching on a cache miss */
   private async _resolveGuild(channelId: string): Promise<string | undefined> {
-    if (!this.api) {
-      return undefined;
+    const find = (guilds: Guild[]) =>
+      guilds.find((guild) =>
+        guild.voiceChannels.some((channel) => channel.id === channelId),
+      )?.id;
+
+    const cached = find(this.guilds);
+    if (cached || !this.api) {
+      return cached;
     }
+    const generation = this.generation;
     const guilds = await this.api.getGuilds();
-    for (const guild of guilds) {
-      if (guild.voiceChannels.some((channel) => channel.id === channelId)) {
-        return guild.id;
-      }
+    if (generation === this.generation) {
+      this.guilds = guilds;
     }
-    return undefined;
+    return find(guilds);
   }
 
   // --- Audio sink API used by PlaybackManager ---

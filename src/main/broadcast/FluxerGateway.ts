@@ -53,6 +53,8 @@ type GatewayPayload = {
 export type VoiceServer = {
   token: string;
   endpoint: string;
+  /** Server-assigned id of the voice connection, needed to leave it again */
+  connectionId?: string;
 };
 
 interface FluxerGatewayEvents {
@@ -114,9 +116,8 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   private reconnectDelay = RECONNECT_MIN_DELAY;
 
+  /** In-flight voice joins keyed by guild (one voice channel per guild) */
   private pendingVoice = new Map<string, PendingVoice>();
-  /** Server-assigned connection id per guild, captured from VOICE_SERVER_UPDATE */
-  private activeConnections = new Map<string, string>();
 
   constructor(url: string, token: string) {
     super();
@@ -358,10 +359,6 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
       log("VOICE_SERVER_UPDATE did not match a pending join");
       return;
     }
-    // Remember the server's connection id so we can disconnect it cleanly
-    if (data.connection_id) {
-      this.activeConnections.set(pending.guildId, data.connection_id);
-    }
     clearTimeout(pending.timeout);
     this.pendingVoice.delete(pending.guildId);
     if (!data.endpoint || !data.token) {
@@ -372,12 +369,17 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     if (data.e2ee_key) {
       log("Channel is end-to-end encrypted; publishing without encryption");
     }
-    pending.resolve({ token: data.token, endpoint: data.endpoint });
+    pending.resolve({
+      token: data.token,
+      endpoint: data.endpoint,
+      connectionId: data.connection_id,
+    });
   }
 
   /**
    * Join a voice channel. Sends op 4 and resolves with the LiveKit
-   * connection details from the matching VOICE_SERVER_UPDATE.
+   * connection details from the matching VOICE_SERVER_UPDATE. Each call opens
+   * a new voice connection; leave it again with `leaveVoice`.
    */
   joinVoice(guildId: string, channelId: string): Promise<VoiceServer> {
     // Cancel any in-flight join for this guild
@@ -421,17 +423,27 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     });
   }
 
-  /** Leave the voice channel in the given guild (op 4 with channel_id null) */
-  leaveVoice(guildId: string) {
-    const pending = this.pendingVoice.get(guildId);
-    if (pending) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error("Left before voice server arrived"));
-      this.pendingVoice.delete(guildId);
+  /** Cancel an in-flight join for the given channel, if there is one */
+  cancelJoin(channelId: string) {
+    for (const pending of this.pendingVoice.values()) {
+      if (pending.channelId === channelId) {
+        clearTimeout(pending.timeout);
+        this.pendingVoice.delete(pending.guildId);
+        pending.reject(new Error("Left before voice server arrived"));
+        return;
+      }
     }
-    // Disconnect the exact connection the server assigned, if we have it
-    const connectionId = this.activeConnections.get(guildId) ?? null;
-    this.activeConnections.delete(guildId);
+  }
+
+  /**
+   * Drop a voice connection (op 4 with channel_id null). Fluxer refuses a
+   * guild leave without the connection id, so there's nothing to send if the
+   * join never got that far.
+   */
+  leaveVoice(guildId: string, connectionId: string | undefined) {
+    if (!connectionId) {
+      return;
+    }
     log(`Leaving voice: guild=${guildId} connection=${connectionId}`);
     this._send({
       op: Op.VoiceStateUpdate,
@@ -518,7 +530,6 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
       pending.reject(new Error("Gateway destroyed"));
     }
     this.pendingVoice.clear();
-    this.activeConnections.clear();
     if (this.ws) {
       this.ws.removeAllListeners();
       // Closing a socket that is still connecting emits an error; swallow it
