@@ -11,6 +11,11 @@ const config = {
     out: "./out",
     icon: "./src/assets/icon",
     appBundleId: "com.kenku.fm",
+    // Webpack bundles every dependency except the externals below, and the
+    // webpack/externals plugins' ignore function already ships only those.
+    // @electron/packager 20 skips that ignore function for any production
+    // module while pruning, which would copy the whole dependency tree.
+    prune: false,
     // This project uses the castlabs Electron build (electron dep pinned to a
     // "+wvcus" tag). Those binaries only exist in the castlabs
     // release repo, so point @electron/get at the castlabs mirror — otherwise
