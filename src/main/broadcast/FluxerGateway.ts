@@ -8,15 +8,18 @@ const Op = {
   Identify: 2,
   VoiceStateUpdate: 4,
   Resume: 6,
+  Reconnect: 7,
   InvalidSession: 9,
   Hello: 10,
   HeartbeatAck: 11,
+  GatewayError: 12,
 } as const;
 
 /**
- * Gateway close codes (from Fluxer's constants.erl). Codes that indicate a
- * client/protocol problem are fatal — reconnecting would just loop — so we
- * surface them. Everything else is treated as a recoverable disconnect.
+ * Gateway close codes (https://docs.fluxer.app/gateway/opcodes-and-close-codes/).
+ * Codes that indicate a client/protocol problem are fatal — reconnecting would
+ * just loop — so we surface them. Everything else is treated as a recoverable
+ * disconnect.
  */
 const FATAL_CLOSE_CODES: Record<number, string> = {
   4001: "Unknown opcode",
@@ -26,7 +29,18 @@ const FATAL_CLOSE_CODES: Record<number, string> = {
   4010: "Invalid shard",
   4011: "Sharding required",
   4012: "Invalid API version",
-  4013: "Gateway backpressure",
+};
+
+/** Close codes after which the session can't be resumed and needs an Identify */
+const SESSION_INVALIDATING_CLOSE_CODES = [4003, 4007];
+
+/** Op 12 refusal codes Fluxer sends for a voice join, mapped to user-facing text */
+const VOICE_ERROR_MESSAGES: Record<string, string> = {
+  VOICE_CHANNEL_FULL: "The voice channel is full",
+  VOICE_P2P_CONSENT_REQUIRED:
+    "Peer-to-peer voice channels are not supported by Kenku FM",
+  VOICE_P2P_UNAVAILABLE:
+    "Peer-to-peer voice channels are not supported by Kenku FM",
 };
 
 type GatewayPayload = {
@@ -47,6 +61,15 @@ interface FluxerGatewayEvents {
   error: (message: string) => void;
 }
 
+type VoiceServerUpdate = {
+  token?: string;
+  endpoint?: string;
+  guild_id?: string;
+  channel_id?: string;
+  connection_id?: string;
+  e2ee_key?: string;
+};
+
 type PendingVoice = {
   guildId: string;
   channelId: string;
@@ -58,6 +81,9 @@ type PendingVoice = {
 const VOICE_SERVER_TIMEOUT = 15000;
 /** How long to wait for the first READY before giving up on a fresh connect */
 const READY_TIMEOUT = 20000;
+/** Reconnect backoff bounds; the delay doubles per failed attempt */
+const RECONNECT_MIN_DELAY = 1000;
+const RECONNECT_MAX_DELAY = 30000;
 
 const log = (message: string, ...args: unknown[]) =>
   console.log(`[FluxerGateway] ${message}`, ...args);
@@ -85,6 +111,8 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
   private hasBeenReady = false;
   /** Timer that fails the initial connect if READY never arrives */
   private readyTimer?: ReturnType<typeof setTimeout>;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
+  private reconnectDelay = RECONNECT_MIN_DELAY;
 
   private pendingVoice = new Map<string, PendingVoice>();
   /** Server-assigned connection id per guild, captured from VOICE_SERVER_UPDATE */
@@ -191,8 +219,16 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
         this.sessionId = undefined;
         this.sequence = null;
         this.resumeGatewayUrl = undefined;
-        // Fluxer sends a fresh Hello flow; identify after a brief delay
+        // The socket stays open but unauthenticated; identify after a brief delay
         setTimeout(() => this._identify(), 1000);
+        break;
+      case Op.Reconnect:
+        // The server closes with 4000 right after this; the close handler
+        // reconnects and resumes the session.
+        log("Received Reconnect");
+        break;
+      case Op.GatewayError:
+        this._handleGatewayError(payload.d as { code: string; message: string });
         break;
       case Op.Dispatch:
         this._handleDispatch(payload.t ?? "", payload.d);
@@ -201,6 +237,26 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
         break;
     }
   };
+
+  /**
+   * Op 12 reports a refused voice join to the session that sent it. It doesn't
+   * name the channel, so fail the oldest pending join (the server handles
+   * commands in order) rather than letting it time out.
+   */
+  private _handleGatewayError(data: { code: string; message: string }) {
+    log(`Gateway error: ${data?.code} ${data?.message}`);
+    const pending = this.pendingVoice.values().next().value as
+      | PendingVoice
+      | undefined;
+    if (!pending) {
+      return;
+    }
+    clearTimeout(pending.timeout);
+    this.pendingVoice.delete(pending.guildId);
+    pending.reject(
+      new Error(VOICE_ERROR_MESSAGES[data?.code] ?? `Refused (${data?.code})`),
+    );
+  }
 
   private _handleHello(data: { heartbeat_interval: number }) {
     if (this.sessionId && this.sequence !== null) {
@@ -213,11 +269,12 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     this._startHeartbeat(data.heartbeat_interval);
   }
 
+  // The gateway takes the raw token; the `Bot` prefix is only for HTTP
   private _identify() {
     this._send({
       op: Op.Identify,
       d: {
-        token: `Bot ${this.token}`,
+        token: this.token,
         properties: {
           os: "windows",
           browser: "Kenku FM",
@@ -231,7 +288,7 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     this._send({
       op: Op.Resume,
       d: {
-        token: `Bot ${this.token}`,
+        token: this.token,
         session_id: this.sessionId,
         seq: this.sequence,
       },
@@ -273,31 +330,21 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
       this.sessionId = d.session_id;
       this.resumeGatewayUrl = d.resume_gateway_url;
       this.hasBeenReady = true;
+      this.reconnectDelay = RECONNECT_MIN_DELAY;
       this._clearReadyTimer();
       log(`READY (session ${this.sessionId})`);
       this.emit("ready");
     } else if (event === "RESUMED") {
       log("RESUMED");
+      this.reconnectDelay = RECONNECT_MIN_DELAY;
       this.emit("ready");
     } else if (event === "VOICE_SERVER_UPDATE") {
       log("VOICE_SERVER_UPDATE received");
-      this._handleVoiceServerUpdate(
-        data as {
-          token: string;
-          endpoint: string;
-          channel_id?: string;
-          connection_id?: string;
-        },
-      );
+      this._handleVoiceServerUpdate(data as VoiceServerUpdate);
     }
   }
 
-  private _handleVoiceServerUpdate(data: {
-    token: string;
-    endpoint: string;
-    channel_id?: string;
-    connection_id?: string;
-  }) {
+  private _handleVoiceServerUpdate(data: VoiceServerUpdate) {
     // The initial join is sent with a null connection_id, so the server
     // assigns one and returns it here. Match the pending join by channel.
     let pending: PendingVoice | undefined;
@@ -317,6 +364,14 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     }
     clearTimeout(pending.timeout);
     this.pendingVoice.delete(pending.guildId);
+    if (!data.endpoint || !data.token) {
+      // A peer-to-peer grant has ICE servers instead of a LiveKit endpoint
+      pending.reject(new Error("The server did not return a LiveKit endpoint"));
+      return;
+    }
+    if (data.e2ee_key) {
+      log("Channel is end-to-end encrypted; publishing without encryption");
+    }
     pending.resolve({ token: data.token, endpoint: data.endpoint });
   }
 
@@ -431,27 +486,33 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
       return;
     }
 
-    // Session-invalidating codes require a fresh identify on reconnect
-    const invalidSession = code === 4007 || code === 4009 || code === 4003;
-    if (invalidSession) {
+    if (SESSION_INVALIDATING_CLOSE_CODES.includes(code)) {
       this.sessionId = undefined;
       this.sequence = null;
       this.resumeGatewayUrl = undefined;
     }
 
-    // Established session dropped: attempt to reconnect (resume if possible)
-    log("Reconnecting in 1s");
-    setTimeout(() => {
+    // Established session dropped: attempt to reconnect (resume if possible),
+    // backing off so a rate limit (4008) or an outage isn't hammered.
+    const delay = this.reconnectDelay;
+    this.reconnectDelay = Math.min(delay * 2, RECONNECT_MAX_DELAY);
+    log(`Reconnecting in ${delay / 1000}s`);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = undefined;
       if (!this.closing && !this.fatal) {
         this._open(this.resumeGatewayUrl ?? this.url);
       }
-    }, 1000);
+    }, delay);
   };
 
   destroy() {
     this.closing = true;
     this._clearReadyTimer();
     this._stopHeartbeat();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = undefined;
+    }
     for (const pending of this.pendingVoice.values()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error("Gateway destroyed"));
@@ -460,6 +521,9 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     this.activeConnections.clear();
     if (this.ws) {
       this.ws.removeAllListeners();
+      // Closing a socket that is still connecting emits an error; swallow it
+      // so it can't surface as an unhandled 'error' event.
+      this.ws.on("error", () => undefined);
       this.ws.close();
       this.ws = undefined;
     }
