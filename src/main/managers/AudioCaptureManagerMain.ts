@@ -79,6 +79,10 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
       "AUDIO_CAPTURE_STOP_BROWSER_VIEW_STREAM",
       this._handleStopBrowserViewStream
     );
+    ipcMain.on(
+      "AUDIO_CAPTURE_STOP_ALL_BROWSER_VIEW_STREAMS",
+      this._handleStopAllBrowserViewStreams
+    );
 
     this._wss.on("connection", this._handleWebsocketConnection);
   }
@@ -105,6 +109,10 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
     ipcMain.off(
       "AUDIO_CAPTURE_STOP_BROWSER_VIEW_STREAM",
       this._handleStopBrowserViewStream
+    );
+    ipcMain.off(
+      "AUDIO_CAPTURE_STOP_ALL_BROWSER_VIEW_STREAMS",
+      this._handleStopAllBrowserViewStreams
     );
     this._browserWindow.webContents.close();
     (this._browserWindow.webContents as any).destroy();
@@ -195,6 +203,9 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
     viewId: number
   ) => {
     const contents = webContents.fromId(viewId);
+    if (!contents) {
+      return;
+    }
     const mediaSourceId = contents.getMediaSourceId(
       this._browserWindow.webContents
     );
@@ -209,6 +220,12 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
     this._browserWindow.webContents.send(
       "AUDIO_CAPTURE_STOP_BROWSER_VIEW_STREAM",
       viewId
+    );
+  };
+
+  _handleStopAllBrowserViewStreams = () => {
+    this._browserWindow.webContents.send(
+      "AUDIO_CAPTURE_STOP_ALL_BROWSER_VIEW_STREAMS"
     );
   };
 }

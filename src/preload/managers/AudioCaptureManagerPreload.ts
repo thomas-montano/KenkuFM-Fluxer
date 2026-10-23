@@ -150,6 +150,7 @@ export class AudioCaptureManagerPreload {
         track.stop();
       }
       delete this._externalAudioStreams[deviceId];
+      this._externalAudioStreamOutputs[deviceId]?.disconnect();
       delete this._externalAudioStreamOutputs[deviceId];
     }
   }
@@ -232,6 +233,17 @@ export class AudioCaptureManagerPreload {
         track.stop();
       }
       delete this._mediaStreams[viewId];
+    }
+    if (this._mediaStreamOutputs[viewId]) {
+      this._mediaStreamOutputs[viewId].disconnect();
+      delete this._mediaStreamOutputs[viewId];
+    }
+  }
+
+  /** Stop the audio capture for every browser view */
+  stopAllBrowserViewStreams(): void {
+    for (const viewId of Object.keys(this._mediaStreams)) {
+      this.stopBrowserViewStream(Number(viewId));
     }
   }
 }

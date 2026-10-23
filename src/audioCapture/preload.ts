@@ -18,6 +18,10 @@ ipcRenderer.on(
   }
 );
 
+ipcRenderer.on("AUDIO_CAPTURE_STOP_ALL_BROWSER_VIEW_STREAMS", () => {
+  audioCaptureManager.stopAllBrowserViewStreams();
+});
+
 ipcRenderer.on(
   "AUDIO_CAPTURE_BROWSER_VIEW_MUTED",
   (_, viewId: number, muted: boolean) => {
