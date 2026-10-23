@@ -1,25 +1,8 @@
-import { ipcMain } from "electron";
-
 import { FastifyPluginCallback } from "fastify";
 
 import { PlayerManager } from "../../../managers/PlayerManager";
-import { VIEW_ERROR } from "../..";
+import { VIEW_ERROR, waitForReply } from "../..";
 import { SoundboardsReply } from "../../../../types/player";
-
-async function waitForSoundboardReply(): Promise<SoundboardsReply> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject("Request timeout");
-    }, 5000);
-    ipcMain.once(
-      "PLAYER_REMOTE_SOUNDBOARD_GET_ALL_REPLY",
-      (_: Electron.IpcMainEvent, soundboards: SoundboardsReply) => {
-        clearTimeout(timeout);
-        resolve(soundboards);
-      }
-    );
-  });
-}
 
 export const get: (manager: PlayerManager) => FastifyPluginCallback =
   (manager) => (fastify, _, done) => {
@@ -28,7 +11,9 @@ export const get: (manager: PlayerManager) => FastifyPluginCallback =
       if (view) {
         view.send("PLAYER_REMOTE_SOUNDBOARD_GET_ALL_REQUEST");
         try {
-          const soundboards = await waitForSoundboardReply();
+          const soundboards = await waitForReply<SoundboardsReply>(
+            "PLAYER_REMOTE_SOUNDBOARD_GET_ALL_REPLY"
+          );
           reply.status(200).send(soundboards);
         } catch {
           reply.status(408).send({

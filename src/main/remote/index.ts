@@ -1,3 +1,4 @@
+import { ipcMain } from "electron";
 import { PlayerManager } from "../managers/PlayerManager";
 import { get as playlistGet } from "./routes/playlist";
 import { play as playlistPlay } from "./routes/playlist/play";
@@ -18,6 +19,21 @@ export const VIEW_ERROR: ReplyError = {
   error: "Service Unavailable",
   message: "Unable to connect to Kenku FM",
 };
+
+/** Wait for the player view to answer a request on `channel` */
+export function waitForReply<T>(channel: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const handler = (_: Electron.IpcMainEvent, reply: T) => {
+      clearTimeout(timeout);
+      resolve(reply);
+    };
+    const timeout = setTimeout(() => {
+      ipcMain.off(channel, handler);
+      reject(new Error("Request timeout"));
+    }, 5000);
+    ipcMain.once(channel, handler);
+  });
+}
 
 export function registerRemote(manager: PlayerManager) {
   manager.fastify.register(playlistGet(manager), {

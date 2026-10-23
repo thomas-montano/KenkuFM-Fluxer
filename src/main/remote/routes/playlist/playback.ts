@@ -1,10 +1,8 @@
-import { ipcMain } from "electron";
-
 import { Static, Type } from "@sinclair/typebox";
 import { FastifyPluginCallback } from "fastify";
 
 import { PlayerManager } from "../../../managers/PlayerManager";
-import { ReplyError, VIEW_ERROR } from "../../";
+import { ReplyError, VIEW_ERROR, waitForReply } from "../../";
 import { PlaylistPlaybackReply } from "../../../../types/player";
 
 const MuteRequest = Type.Object({
@@ -36,21 +34,6 @@ const SeekRequest = Type.Object({
 });
 type SeekRequestType = Static<typeof SeekRequest>;
 
-async function waitForPlaybackReply(): Promise<PlaylistPlaybackReply> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject("Request timeout");
-    }, 5000);
-    ipcMain.once(
-      "PLAYER_REMOTE_PLAYLIST_PLAYBACK_REPLY",
-      (_: Electron.IpcMainEvent, playback: PlaylistPlaybackReply) => {
-        clearTimeout(timeout);
-        resolve(playback);
-      }
-    );
-  });
-}
-
 export const playback: (manager: PlayerManager) => FastifyPluginCallback =
   (manager) => (fastify, _, done) => {
     fastify.get("/", async (_, reply) => {
@@ -58,7 +41,9 @@ export const playback: (manager: PlayerManager) => FastifyPluginCallback =
       if (view) {
         view.send("PLAYER_REMOTE_PLAYLIST_PLAYBACK_REQUEST");
         try {
-          const playback = await waitForPlaybackReply();
+          const playback = await waitForReply<PlaylistPlaybackReply>(
+            "PLAYER_REMOTE_PLAYLIST_PLAYBACK_REPLY"
+          );
           reply.status(200).send(playback);
         } catch {
           reply.status(408).send({

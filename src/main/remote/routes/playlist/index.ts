@@ -1,25 +1,8 @@
-import { ipcMain } from "electron";
-
 import { FastifyPluginCallback } from "fastify";
 
 import { PlayerManager } from "../../../managers/PlayerManager";
-import { VIEW_ERROR } from "../..";
+import { VIEW_ERROR, waitForReply } from "../..";
 import { PlaylistsReply } from "../../../../types/player";
-
-async function waitForPlaylistReply(): Promise<PlaylistsReply> {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject("Request timeout");
-    }, 5000);
-    ipcMain.once(
-      "PLAYER_REMOTE_PLAYLIST_GET_ALL_REPLY",
-      (_: Electron.IpcMainEvent, playlists: PlaylistsReply) => {
-        clearTimeout(timeout);
-        resolve(playlists);
-      }
-    );
-  });
-}
 
 export const get: (manager: PlayerManager) => FastifyPluginCallback =
   (manager) => (fastify, _, done) => {
@@ -28,7 +11,9 @@ export const get: (manager: PlayerManager) => FastifyPluginCallback =
       if (view) {
         view.send("PLAYER_REMOTE_PLAYLIST_GET_ALL_REQUEST");
         try {
-          const playlists = await waitForPlaylistReply();
+          const playlists = await waitForReply<PlaylistsReply>(
+            "PLAYER_REMOTE_PLAYLIST_GET_ALL_REPLY"
+          );
           reply.status(200).send(playlists);
         } catch {
           reply.status(408).send({
