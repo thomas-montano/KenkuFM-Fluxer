@@ -63,7 +63,7 @@
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
     "@ghostery/adblocker-electron": "^2.18.1",
-    "@livekit/rtc-node": "^0.13.14",
+    "@livekit/rtc-node": "^1.2.1",
     "@mui/icons-material": "6.5.0",
     "@mui/material": "6.5.0",
     "@reduxjs/toolkit": "^2.2.6",
