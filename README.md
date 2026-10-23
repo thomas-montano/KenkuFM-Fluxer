@@ -46,7 +46,7 @@ To install all the dependencies run:
 
 `npm install`
 
-A `postinstall` step (`scripts/patch-livekit-exports.js`) patches the `@livekit` packages' `exports` field so Electron Forge's externals plugin can resolve them — this runs automatically. Peer-dependency resolution is relaxed via `.npmrc` (`legacy-peer-deps=true`) to accommodate some legacy dev dependencies.
+A `postinstall` step (`scripts/patch-livekit-exports.js`) patches the `@livekit` packages' `exports` field so Electron Forge's externals plugin can resolve them — this runs automatically. The project `.npmrc` relaxes peer-dependency resolution (`legacy-peer-deps=true`) to accommodate some legacy dev dependencies, and allows git dependencies (`allow-git=all`), which npm 12 otherwise refuses — the castlabs Electron build is installed from git.
 
 To run Kenku FM in a development mode run:
 
