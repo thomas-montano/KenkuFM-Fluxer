@@ -60,7 +60,7 @@ If you wish to add protected media playback support follow the build steps from 
 
 ### Troubleshooting the Fluxer connection
 
-`scripts/fluxer-doctor.js` is a standalone REST + gateway connectivity check. Run it against your instance to verify your server URL and bot token before launching the app:
+`scripts/fluxer-doctor.js` is a standalone connectivity check. It reports the server version and whether voice is enabled, validates the bot token over REST, then connects to the gateway and test-joins the first voice channel it finds. Run it against your instance to verify your server URL and bot token before launching the app:
 
 `node scripts/fluxer-doctor.js <server-url> <bot-token>`
 

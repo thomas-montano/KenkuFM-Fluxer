@@ -46,6 +46,27 @@ async function getJson(path) {
   return JSON.parse(body);
 }
 
+async function checkInstance() {
+  line();
+  console.log("STEP 0: Instance discovery (GET /.well-known/fluxer)");
+  try {
+    const res = await fetch(`${origin}/.well-known/fluxer`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    const info = await res.json();
+    const version = res.headers.get("x-fluxer-version") || "unknown";
+    console.log(`  OK - server version ${version}`);
+    if (info.features && info.features.voice_enabled === false) {
+      console.log(
+        "  ! Voice is disabled on this instance, so voice joins will fail.",
+      );
+    }
+  } catch (err) {
+    // Older instances may not serve discovery; the REST checks still apply
+    console.log(`  Skipped (${err.message})`);
+  }
+}
+
 async function checkRest() {
   line();
   console.log("STEP 1: Validate bot token (GET /users/@me)");
@@ -163,7 +184,8 @@ function checkGateway(gatewayUrl, voiceTarget) {
           JSON.stringify({
             op: 2,
             d: {
-              token: `Bot ${token}`,
+              // The gateway takes the raw token; `Bot` is only for HTTP
+              token,
               properties: {
                 os: "windows",
                 browser: "Kenku FM",
@@ -240,6 +262,15 @@ function checkGateway(gatewayUrl, voiceTarget) {
         finish(true, "Voice join succeeded — Kenku voice output will work!");
       } else if (msg.op === 9) {
         finish(false, "Server sent Invalid Session (token rejected?)");
+      } else if (msg.op === 1) {
+        // The server asks for an immediate heartbeat
+        ws.send(JSON.stringify({ op: 1, d: sequence }));
+      } else if (msg.op === 12) {
+        finish(
+          false,
+          `Voice join refused: ${msg.d && msg.d.code} (peer-to-peer ` +
+            "channels are not supported, and full channels can't be joined)",
+        );
       }
     });
 
@@ -247,7 +278,7 @@ function checkGateway(gatewayUrl, voiceTarget) {
       const text = reason ? reason.toString() : "";
       const hint =
         code === 4012
-          ? " (invalid API version — this is the bug the fix addresses)"
+          ? " (invalid API version)"
           : code === 4004
             ? " (authentication failed — bad bot token)"
             : "";
@@ -261,6 +292,7 @@ function checkGateway(gatewayUrl, voiceTarget) {
 (async () => {
   console.log(`Fluxer Doctor — checking ${origin}`);
   try {
+    await checkInstance();
     const { gatewayUrl, voiceTarget } = await checkRest();
     const ok = await checkGateway(gatewayUrl, voiceTarget);
     line();
