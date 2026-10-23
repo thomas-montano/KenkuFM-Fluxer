@@ -56,7 +56,10 @@ const createWindow = (): BrowserWindow => {
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url);
+    // Only hand web links to the OS; never file: or custom protocol handlers
+    if (/^https?:\/\//i.test(details.url)) {
+      shell.openExternal(details.url);
+    }
     return { action: "deny" };
   });
 
