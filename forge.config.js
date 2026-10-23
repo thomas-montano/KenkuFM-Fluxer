@@ -1,5 +1,10 @@
 const path = require("path");
 
+// The externals plugin below needs the @livekit packages' exports patched.
+// postinstall already does this, but `npm update` and single-package installs
+// re-extract them without running it, so re-apply (idempotently) on every run.
+require("./scripts/patch-livekit-exports");
+
 const config = {
   packagerConfig: {
     executableName: "kenku-fm",
