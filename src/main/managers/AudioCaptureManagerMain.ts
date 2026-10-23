@@ -1,3 +1,6 @@
+import { randomUUID } from "crypto";
+import { IncomingMessage } from "http";
+import { AddressInfo } from "net";
 import { BrowserWindow, ipcMain, webContents } from "electron";
 import { TypedEmitter } from "tiny-typed-emitter";
 import { WebSocketServer, WebSocket } from "ws";
@@ -20,6 +23,8 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
   _browserWindow: BrowserWindow;
   _streaming = false;
   _wss: WebSocketServer;
+  /** Shared with the capture window so no other client can inject audio */
+  _wsSecret = randomUUID();
 
   constructor() {
     super();
@@ -38,7 +43,16 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
       show: false
     });
     this._browserWindow.webContents.loadURL(AUDIO_CAPTURE_WINDOW_WEBPACK_ENTRY);
-    this._wss = new WebSocketServer({ port: 0 });
+    // Loopback only, and only for clients that present the secret: anything
+    // sent on this socket is streamed straight into the voice channel.
+    this._wss = new WebSocketServer({
+      host: "127.0.0.1",
+      port: 0,
+      verifyClient: ({ req }: { req: IncomingMessage }) =>
+        new URL(req.url ?? "", "ws://127.0.0.1").searchParams.get(
+          "secret",
+        ) === this._wsSecret,
+    });
 
     ipcMain.on("AUDIO_CAPTURE_START", this._handleStart);
     ipcMain.on("AUDIO_CAPTURE_SET_LOOPBACK", this._handleSetLoopback);
@@ -167,8 +181,13 @@ export class AudioCaptureManagerMain extends TypedEmitter<AudioCaptureManagerEve
     this.emit("streamEnd");
   };
 
-  _handleGetWebsocketAddress = async () => {
-    return this._wss.address();
+  _handleGetWebsocketAddress = async (event: Electron.IpcMainInvokeEvent) => {
+    // Only the capture window may stream audio into the socket
+    if (event.sender.id !== this._browserWindow.webContents.id) {
+      return null;
+    }
+    const { port } = this._wss.address() as AddressInfo;
+    return { port, secret: this._wsSecret };
   };
 
   _handleStartBrowserViewStream = (

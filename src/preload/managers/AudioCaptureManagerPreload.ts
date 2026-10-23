@@ -155,10 +155,12 @@ export class AudioCaptureManagerPreload {
   }
 
   async _setupWebsocket(): Promise<void> {
-    const websocketAddress = await ipcRenderer.invoke(
+    const { port, secret } = await ipcRenderer.invoke(
       "AUDIO_CAPTURE_GET_WEBSOCKET_ADDRESS"
     );
-    this._ws = new WebSocket(`ws://localhost:${websocketAddress.port}`);
+    this._ws = new WebSocket(
+      `ws://127.0.0.1:${port}/?secret=${encodeURIComponent(secret)}`
+    );
     this._ws.addEventListener("close", (event) => {
       ipcRenderer.emit(
         "ERROR",
