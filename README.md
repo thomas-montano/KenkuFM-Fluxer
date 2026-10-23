@@ -46,7 +46,7 @@ To install all the dependencies run:
 
 `npm install`
 
-A `postinstall` step (`scripts/patch-livekit-exports.js`) patches the `@livekit` packages' `exports` field so Electron Forge's externals plugin can resolve them — this runs automatically. The project `.npmrc` relaxes peer-dependency resolution (`legacy-peer-deps=true`) because Electron Forge's terminal UI expects React 19 while the app uses React 18, and allows git dependencies (`allow-git=all`), which npm 12 otherwise refuses — the castlabs Electron build is installed from git.
+A `postinstall` step (`scripts/patch-livekit-exports.js`) patches the `@livekit` packages' `exports` field so Electron Forge's externals plugin can resolve them — this runs automatically. A second one (`scripts/track-nightly-tag.js`) adds `+refs/tags/nightly:refs/tags/nightly` to your clone's `remote.origin.fetch`, so pulls follow the `nightly` tag that CI moves on every push instead of failing with "would clobber existing tag". The project `.npmrc` relaxes peer-dependency resolution (`legacy-peer-deps=true`) because Electron Forge's terminal UI expects React 19 while the app uses React 18, and allows git dependencies (`allow-git=all`), which npm 12 otherwise refuses — the castlabs Electron build is installed from git.
 
 The castlabs Electron binary is not downloaded during install; Electron fetches it the first time you start or build the app.
 

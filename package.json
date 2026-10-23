@@ -8,7 +8,7 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "postinstall": "node scripts/patch-livekit-exports.js",
+    "postinstall": "node scripts/patch-livekit-exports.js && node scripts/track-nightly-tag.js",
     "lint": "eslint ."
   },
   "keywords": [],
