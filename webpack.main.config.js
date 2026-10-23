@@ -13,5 +13,9 @@ module.exports = {
   },
   externals: {
     "@livekit/rtc-node": "commonjs2 @livekit/rtc-node",
+    // Optional native addons that ws tries to load and falls back without.
+    // Leave them as runtime requires instead of failing to resolve them.
+    bufferutil: "commonjs bufferutil",
+    "utf-8-validate": "commonjs utf-8-validate",
   },
 };
