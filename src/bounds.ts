@@ -29,12 +29,13 @@ export function getSavedBounds(
       savedBounds.x = bounds.x;
       savedBounds.y = bounds.y;
     }
-    // If the saved size is still valid, use it.
-    if (bounds.width <= area.width || bounds.height <= area.height) {
-      // If the saved width and height are smaller than the window min then return the window min
-      savedBounds.width = Math.max(bounds.width, minWidth);
-      savedBounds.height = Math.max(bounds.height, minHeight);
-    }
+    // Restore the saved size, shrunk to fit the display but no smaller than
+    // the window minimum.
+    savedBounds.width = Math.max(Math.min(bounds.width, area.width), minWidth);
+    savedBounds.height = Math.max(
+      Math.min(bounds.height, area.height),
+      minHeight,
+    );
   }
   return { bounds: savedBounds, maximized };
 }

@@ -1,4 +1,5 @@
 import os from "os";
+import path from "path";
 import {
   app,
   BrowserWindow,
@@ -42,7 +43,8 @@ const createWindow = (): BrowserWindow => {
     },
     titleBarStyle: "hidden",
     trafficLightPosition: { x: 16, y: 18 },
-    icon: icon,
+    // Webpack emits the icon next to the main bundle and imports its file name
+    icon: path.join(__dirname, icon),
     minWidth,
     minHeight,
     ...bounds,
