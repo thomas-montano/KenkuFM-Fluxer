@@ -35,20 +35,26 @@ export class PlayerManager {
   }
 
   startRemote(address: string, port: string) {
+    // Restarting must not leave the previous server holding the port
+    this.fastify?.close();
+
     this.address = address;
     this.port = port;
 
-    this.fastify = Fastify();
+    const fastify = Fastify();
+    this.fastify = fastify;
 
     registerRemote(this);
 
-    this.fastify.listen(this.port, this.address, (err) => {
+    fastify.listen({ port: Number(this.port), host: this.address }, (err) => {
       const windows = BrowserWindow.getAllWindows();
       if (err) {
         for (const window of windows) {
           window.webContents.send("ERROR", err.message);
         }
-        this.stopRemote();
+        if (this.fastify === fastify) {
+          this.stopRemote();
+        }
       } else {
         for (const window of windows) {
           window.webContents.send("PLAYER_REMOTE_ENABLED", true);
