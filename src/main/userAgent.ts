@@ -6,7 +6,8 @@ const platformMap: Record<string, string> = {
   linux: "X11; Linux x86_64",
 };
 
-const chromeVersion = "138.0.7204.251";
+/** Chromium version of the running Electron build */
+const chromeVersion = process.versions.chrome;
 
 /** Approximate the user agent for this platform */
 export function getUserAgent() {
