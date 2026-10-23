@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell, WebContentsView } from "electron";
+import { BrowserWindow, ipcMain, WebContentsView } from "electron";
 import { getUserAgent } from "../userAgent";
 
 /**
@@ -187,14 +187,11 @@ export class BrowserViewManagerMain {
       height,
     });
 
-    try {
-      view.webContents.loadURL(url);
-    } catch (err) {
-      console.error(err);
-    }
-
-    // Spoof user agent to fix compatibility issues with 3rd party apps
+    // Spoof user agent to fix compatibility issues with 3rd party apps. Set it
+    // before the first load so the initial page sees it too.
     view.webContents.setUserAgent(getUserAgent());
+
+    view.webContents.loadURL(url).catch((err) => console.error(err));
 
     this.views[view.webContents.id] = view;
     this.topView = view;
@@ -215,7 +212,7 @@ export class BrowserViewManagerMain {
   }
 
   removeAllBrowserViews() {
-    for (let id in this.views) {
+    for (const id in this.views) {
       this.views[id].webContents.close({ waitForBeforeUnload: false });
       this.window.contentView.removeChildView(this.views[id]);
       (this.views[id].webContents as any).destroy();
@@ -255,11 +252,7 @@ export class BrowserViewManagerMain {
   }
 
   loadURL(id: number, url: string) {
-    try {
-      this.views[id].webContents.loadURL(url);
-    } catch (err) {
-      console.error(err);
-    }
+    this.views[id]?.webContents.loadURL(url).catch((err) => console.error(err));
   }
 
   goForward(id: number) {
