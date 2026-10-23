@@ -44,7 +44,7 @@
     "@typescript-eslint/eslint-plugin": "^7.16.0",
     "@typescript-eslint/parser": "^7.16.0",
     "css-loader": "^6.6.0",
-    "electron": "https://github.com/castlabs/electron-releases#v37.6.0+wvcus",
+    "electron": "https://github.com/castlabs/electron-releases#v44.9.3+wvcus",
     "eslint": "^8.57.1",
     "eslint-plugin-import": "^2.25.4",
     "fork-ts-checker-webpack-plugin": "^9.0.2",
@@ -85,7 +85,6 @@
     "ws": "^8.19.0"
   },
   "allowScripts": {
-    "github:castlabs/electron-releases#328ceee5aad1fb998335707a9295ad7145e7f25e": true,
     "electron-winstaller": true
   }
 }
