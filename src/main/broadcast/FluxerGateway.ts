@@ -100,6 +100,8 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
   private ws?: WebSocket;
 
   private heartbeatInterval?: ReturnType<typeof setInterval>;
+  /** Interval advertised in Hello, kept so a server request can reschedule */
+  private heartbeatIntervalMs?: number;
   private heartbeatAcked = true;
   private sequence: number | null = null;
   private sessionId?: string;
@@ -213,7 +215,7 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
         this.heartbeatAcked = true;
         break;
       case Op.Heartbeat:
-        this._sendHeartbeat();
+        this._handleHeartbeatRequest();
         break;
       case Op.InvalidSession:
         log("Received Invalid Session; re-identifying");
@@ -296,8 +298,25 @@ export class FluxerGateway extends TypedEmitter<FluxerGatewayEvents> {
     });
   }
 
+  /**
+   * Fluxer requests a heartbeat once 90% of the interval has passed since the
+   * last ack, and its 13,750 ms check cadence lines that request up with our
+   * own tick. Answer it and restart the schedule so the reply gets a full
+   * interval to be acked; otherwise our tick lands a few ms after the reply,
+   * before its ack, and kills a healthy socket.
+   */
+  private _handleHeartbeatRequest() {
+    if (this.heartbeatIntervalMs === undefined) {
+      this._sendHeartbeat();
+      return;
+    }
+    this._startHeartbeat(this.heartbeatIntervalMs);
+    this._sendHeartbeat();
+  }
+
   private _startHeartbeat(interval: number) {
     this._stopHeartbeat();
+    this.heartbeatIntervalMs = interval;
     this.heartbeatAcked = true;
     this.heartbeatInterval = setInterval(() => {
       if (!this.heartbeatAcked) {
