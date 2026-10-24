@@ -191,7 +191,10 @@ export class BrowserViewManagerMain {
     // before the first load so the initial page sees it too.
     view.webContents.setUserAgent(getUserAgent());
 
-    view.webContents.loadURL(url).catch((err) => console.error(err));
+    // A new tab starts blank; loading "" just fails with ERR_INVALID_URL
+    if (url) {
+      view.webContents.loadURL(url).catch((err) => console.error(err));
+    }
 
     this.views[view.webContents.id] = view;
     this.topView = view;
